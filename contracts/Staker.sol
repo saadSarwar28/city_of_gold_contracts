@@ -192,9 +192,9 @@ contract Staker is Ownable {
             IEstateContract(ESTATE).transferFrom(msg.sender, address(this), tokenIds[index]);
             stakedEstates[tokenIds[index]] =
             StakerInfo({
-            owner : msg.sender,
-            stakedAt : block.timestamp,
-            lastRewardsClaimedAt : 0
+                owner : msg.sender,
+                stakedAt : block.timestamp,
+                lastRewardsClaimedAt : 0
             });
             estateBalances[msg.sender] += 1;
         }
@@ -204,9 +204,9 @@ contract Staker is Ownable {
     function stakeEstateFromMinter(uint tokenId, address _owner) public onlyEstateMinter returns(bool) {
         stakedEstates[tokenId] =
         StakerInfo({
-        owner : _owner,
-        stakedAt : block.timestamp,
-        lastRewardsClaimedAt : 0
+            owner : _owner,
+            stakedAt : block.timestamp,
+            lastRewardsClaimedAt : 0
         });
         estateBalances[_owner] += 1;
         return true;
@@ -281,7 +281,7 @@ contract Staker is Ownable {
         uint tokensPerDay = COG_EMISSIONS_PER_DAY / 100 * landScore;
         uint tokensPerSecond = tokensPerDay / 86400;
         uint stakeTimeInSeconds = block.timestamp - lastClaimedAt;
-        return tokensPerSecond * stakeTimeInSeconds;
+        return (tokensPerSecond * stakeTimeInSeconds) * 10**18;
     }
 
     function calculateTokenDistributionForEstate(uint estateId, uint lastClaimedAt) public view returns(uint amountToDistribute) {
@@ -295,6 +295,6 @@ contract Staker is Ownable {
         uint tokensToDistribute = stakeTimeInSeconds * tokensPerSecond;
         // multiplier is supposed to be 1.multiplier
         uint multiplierAmount = (tokensToDistribute / 100) * multiplier;
-        return tokensToDistribute + multiplierAmount;
+        return (tokensToDistribute + multiplierAmount) * 10**18;
     }
 }
