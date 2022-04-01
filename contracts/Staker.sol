@@ -3,8 +3,7 @@
 pragma solidity ^0.8.4;
 
 import "openzeppelin-solidity/contracts/access/Ownable.sol";
-import "openzeppelin-solidity/contracts/utils/math/SafeMath.sol";
-
+import "openzeppelin-solidity/contracts/token/ERC721/IERC721Receiver.sol";
 
 interface ILandContract {
     function ownerOf(uint256 tokenId) external returns (address);
@@ -17,9 +16,9 @@ interface IEstateContract {
 
     function transferFrom(address from, address to, uint256 tokenId) external;
 
-    function getScore(uint256 tokenId) external view returns(uint);
+    function getScore(uint256 tokenId) external view returns(uint score);
 
-    function getMultiplier(uint256 tokenId) external view returns(uint);
+    function getMultiplier(uint256 tokenId) external view returns(uint multiplier);
 
     function totalSupply() external view returns(uint);
 }
@@ -32,7 +31,7 @@ interface IScores {
     function getLandScore(uint tokenID) external view returns (uint score);
 }
 
-contract Staker is Ownable {
+contract Staker is Ownable, IERC721Receiver {
 
     address public COG;
     address public LAND;
@@ -101,6 +100,10 @@ contract Staker is Ownable {
         SCORES = scores;
     }
 
+    function setLockupPeriod(uint period) public onlyOwner {
+        LOCKUP_PERIOD = period;
+    }
+
     // for manual staking after mint
     function stakeLand(uint[] memory tokenIds) public returns (bool success) {
         for (uint index = 0; index < tokenIds.length; index++) {
@@ -110,9 +113,9 @@ contract Staker is Ownable {
             ILandContract(LAND).transferFrom(msg.sender, address(this), tokenIds[index]);
             stakedLands[tokenIds[index]] =
             StakerInfo({
-            owner : msg.sender,
-            stakedAt : block.timestamp,
-            lastRewardsClaimedAt : 0
+                owner : msg.sender,
+                stakedAt : block.timestamp,
+                lastRewardsClaimedAt : 0
             });
             landBalances[msg.sender] += 1;
         }
@@ -124,9 +127,9 @@ contract Staker is Ownable {
         for (uint index = 0; index < tokenIds.length; index++) {
             stakedLands[tokenIds[index]] =
             StakerInfo({
-            owner : _owner,
-            stakedAt : block.timestamp,
-            lastRewardsClaimedAt : 0
+                owner : _owner,
+                stakedAt : block.timestamp,
+                lastRewardsClaimedAt : 0
             });
             landBalances[msg.sender] += 1;
         }
@@ -296,5 +299,9 @@ contract Staker is Ownable {
         // multiplier is supposed to be 1.multiplier
         uint multiplierAmount = (tokensToDistribute / 100) * multiplier;
         return (tokensToDistribute + multiplierAmount) * 10**18;
+    }
+
+    function onERC721Received(address, address, uint256, bytes memory) public virtual override returns (bytes4) {
+        return this.onERC721Received.selector;
     }
 }

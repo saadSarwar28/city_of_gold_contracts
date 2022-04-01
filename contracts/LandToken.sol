@@ -8,23 +8,16 @@
 
 pragma solidity ^0.8.4;
 
-// import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/token/ERC721/ERC721.sol";
 import "openzeppelin-solidity/contracts/access/Ownable.sol";
 import "openzeppelin-solidity/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
-import "openzeppelin-solidity/contracts/utils/math/SafeMath.sol";
-import "openzeppelin-solidity/contracts/utils/Counters.sol";
 import "openzeppelin-solidity/contracts/utils/cryptography/MerkleProof.sol";
-
+import "openzeppelin-solidity/contracts/utils/Strings.sol";
 
 interface IStakerContract {
     function stakeLandFromMinter(uint[] memory tokenIds, address _owner) external returns(bool success);
 }
 
 contract cityOfGoldLand is ERC721Enumerable, Ownable {
-
-    using Strings for uint256;
-    using Counters for Counters.Counter;
-    Counters.Counter private _tokenIds;
 
     uint256 public nftPrice;
 
@@ -37,8 +30,6 @@ contract cityOfGoldLand is ERC721Enumerable, Ownable {
     mapping(address => bool) public whitelistClaimed;
 
     uint256 public MAX_SUPPLY; // max supply of nfts
-
-    bool public preMintActive = false; // for private premint sale
 
     bool public whiteListActive = false; // for white listed addressess sale
 
@@ -97,25 +88,14 @@ contract cityOfGoldLand is ERC721Enumerable, Ownable {
         if (bytes(_tokenURIs[tokenId]).length != 0) {
             return _tokenURIs[tokenId];
         }
-        return string(abi.encodePacked(baseTokenURI, tokenId.toString(), ".json"));
+        return string(abi.encodePacked(baseTokenURI, Strings.toString(tokenId)));
     }
-
-    // function totalSupply() public view returns (uint256) {
-    //     return _tokenIds.current();
-    // }
 
     /*
     * for public sale
     */
     function flipSaleState() public onlyOwner {
         saleIsActive = !saleIsActive;
-    }
-
-    /*
-    * for premint private sale
-    */
-    function flipPremintSaleState() public onlyOwner {
-        preMintActive = !preMintActive;
     }
 
     /*
@@ -135,7 +115,7 @@ contract cityOfGoldLand is ERC721Enumerable, Ownable {
         require(MerkleProof.verify(_merkleProof, merkleRoot, leaf), "Invalid Proof");
         whitelistClaimed[msg.sender] = true;
         treasury.transfer(msg.value);
-        uint256 newNftId = _tokenIds.current();
+        uint256 newNftId = totalSupply() + 1;
         if (stake) {
             _safeMint(STAKER, newNftId);
             uint[] memory tokenIds = new uint[](1);
@@ -152,37 +132,33 @@ contract cityOfGoldLand is ERC721Enumerable, Ownable {
         require(nftPrice > 0, "NFT price not set yet");
         require(treasury != address(0), "Treasury address not set yet");
         require(saleIsActive, "Sale must be active to mint nft");
-        require((totalSupply() + 1) <= MAX_SUPPLY, "Purchase would exceed max supply of NFTs");
+        require((totalSupply() + amount) <= MAX_SUPPLY, "Purchase would exceed max supply of NFTs");
         require(msg.value >= (nftPrice * amount), "Not enough balance");
         treasury.transfer(msg.value);
         if (stake) {
             uint[] memory tokenIds = new uint[](amount);
             for (uint index = 0; index < amount; index++) {
-                _tokenIds.increment();
-                uint256 newNftId = _tokenIds.current();
-                _safeMint(STAKER, newNftId);
-                tokenIds[index] = newNftId;
+                uint256 newLandId = totalSupply() + 1;
+                _safeMint(STAKER, newLandId);
+                tokenIds[index] = newLandId;
             }
             require(IStakerContract(STAKER).stakeLandFromMinter(tokenIds, msg.sender), "Staking failure");
         } else {
             for (uint index = 0; index < amount; index++) {
-                _tokenIds.increment();
-                uint256 newNftId = _tokenIds.current();
-                _safeMint(msg.sender, newNftId);
+                uint256 newLandId = totalSupply() + 1;
+                _safeMint(msg.sender, newLandId);
             }
         }
     }
 
     // mint for function to mint an nft for a given address, can be called only by owner
     function mintFor(address _to) public onlyOwner() {
-        require(preMintActive, "Premint sale must be active to mint nft");
         require((totalSupply() + 1) <= MAX_SUPPLY, "Purchase would exceed max supply of NFTs");
-        _tokenIds.increment();
-        uint256 newNftId = _tokenIds.current();
+        uint256 newNftId = totalSupply() + 1;
         _safeMint(_to, newNftId);
     }
 
-    // mass minting function
+    // mass minting function, one for each address
     function massMint(address[] memory addresses) public onlyOwner() {
         uint index;
         for (index = 0; index < addresses.length; index++) {
@@ -190,6 +166,7 @@ contract cityOfGoldLand is ERC721Enumerable, Ownable {
         }
     }
 
+    // additional burn function
     function burn(uint256 tokenId) public {
         require(ERC721._exists(tokenId), "burning non existent token");
         require(ERC721.ownerOf(tokenId) == msg.sender, "Not your token");
