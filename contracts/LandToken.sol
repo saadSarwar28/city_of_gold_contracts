@@ -2,7 +2,6 @@
 
 /**
  * @title city of gold Land nfts
- * @author Saad Sarwar
  */
 
 
@@ -11,13 +10,17 @@ pragma solidity ^0.8.4;
 import "openzeppelin-solidity/contracts/access/Ownable.sol";
 import "openzeppelin-solidity/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
 import "openzeppelin-solidity/contracts/utils/cryptography/MerkleProof.sol";
+import "openzeppelin-solidity/contracts/security/ReentrancyGuard.sol";
 import "openzeppelin-solidity/contracts/utils/Strings.sol";
+
 
 interface IStakerContract {
     function stakeLandFromMinter(uint[] memory tokenIds, address _owner) external returns(bool success);
 }
 
-contract cityOfGoldLand is ERC721Enumerable, Ownable {
+contract cityOfGoldLand is ERC721Enumerable, Ownable, ReentrancyGuard {
+
+    uint public TOKEN_ID = 0; // starts from one
 
     uint256 public nftPrice;
 
@@ -105,57 +108,57 @@ contract cityOfGoldLand is ERC721Enumerable, Ownable {
         whiteListActive = !whiteListActive;
     }
 
-    function whitelistMint(bytes32[] calldata _merkleProof, bool stake) public payable {
+    function whitelistMint(bytes32[] calldata _merkleProof, bool stake) public payable nonReentrant {
         require(whiteListActive, "Whitelist sale is not active yet.");
         require(whitelistPrice > 0, "Whitelist price not set yet");
-        require((totalSupply() + 1) <= MAX_SUPPLY, "Purchase would exceed max supply of NFTs");
+        require((TOKEN_ID + 1) <= MAX_SUPPLY, "Purchase would exceed max supply of NFTs");
         require(msg.value >= whitelistPrice, "Not enough balance");
         require(!whitelistClaimed[msg.sender], "Address has already claimed");
         bytes32 leaf = keccak256(abi.encodePacked(msg.sender));
         require(MerkleProof.verify(_merkleProof, merkleRoot, leaf), "Invalid Proof");
         whitelistClaimed[msg.sender] = true;
         treasury.transfer(msg.value);
-        uint256 newNftId = totalSupply() + 1;
+        TOKEN_ID += 1;
         if (stake) {
-            _safeMint(STAKER, newNftId);
+            _safeMint(STAKER, TOKEN_ID);
             uint[] memory tokenIds = new uint[](1);
-            tokenIds[0] = newNftId;
+            tokenIds[0] = TOKEN_ID;
             require(IStakerContract(STAKER).stakeLandFromMinter(tokenIds, msg.sender), "Staking failure");
         }  else {
-            _safeMint(msg.sender, newNftId);
+            _safeMint(msg.sender, TOKEN_ID);
         }
     }
 
     // the default mint function for public sale
-    function publicMint(uint amount, bool stake) public payable {
+    function publicMint(uint amount, bool stake) public payable nonReentrant {
         require(amount > 0 && amount < 5, "Cannot be more than five");
         require(nftPrice > 0, "NFT price not set yet");
         require(treasury != address(0), "Treasury address not set yet");
         require(saleIsActive, "Sale must be active to mint nft");
-        require((totalSupply() + amount) <= MAX_SUPPLY, "Purchase would exceed max supply of NFTs");
+        require((TOKEN_ID + amount) <= MAX_SUPPLY, "Purchase would exceed max supply of NFTs");
         require(msg.value >= (nftPrice * amount), "Not enough balance");
         treasury.transfer(msg.value);
         if (stake) {
             uint[] memory tokenIds = new uint[](amount);
             for (uint index = 0; index < amount; index++) {
-                uint256 newLandId = totalSupply() + 1;
-                _safeMint(STAKER, newLandId);
-                tokenIds[index] = newLandId;
+                TOKEN_ID += 1;
+                _safeMint(STAKER, TOKEN_ID);
+                tokenIds[index] = TOKEN_ID;
             }
             require(IStakerContract(STAKER).stakeLandFromMinter(tokenIds, msg.sender), "Staking failure");
         } else {
             for (uint index = 0; index < amount; index++) {
-                uint256 newLandId = totalSupply() + 1;
-                _safeMint(msg.sender, newLandId);
+                TOKEN_ID += 1;
+                _safeMint(msg.sender, TOKEN_ID);
             }
         }
     }
 
     // mint for function to mint an nft for a given address, can be called only by owner
     function mintFor(address _to) public onlyOwner() {
-        require((totalSupply() + 1) <= MAX_SUPPLY, "Purchase would exceed max supply of NFTs");
-        uint256 newNftId = totalSupply() + 1;
-        _safeMint(_to, newNftId);
+        require((TOKEN_ID + 1) <= MAX_SUPPLY, "Purchase would exceed max supply of NFTs");
+        TOKEN_ID += 1;
+        _safeMint(_to, TOKEN_ID);
     }
 
     // mass minting function, one for each address

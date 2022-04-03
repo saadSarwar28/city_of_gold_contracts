@@ -3,6 +3,8 @@
 pragma solidity ^0.8.4;
 
 import "openzeppelin-solidity/contracts/access/Ownable.sol";
+import "openzeppelin-solidity/contracts/utils/math/SafeMath.sol";
+import "openzeppelin-solidity/contracts/security/ReentrancyGuard.sol";
 import "openzeppelin-solidity/contracts/token/ERC721/IERC721Receiver.sol";
 
 interface ILandContract {
@@ -16,9 +18,9 @@ interface IEstateContract {
 
     function transferFrom(address from, address to, uint256 tokenId) external;
 
-    function getScore(uint256 tokenId) external view returns(uint score);
+    function getScore(uint256 tokenId) external view returns(uint);
 
-    function getMultiplier(uint256 tokenId) external view returns(uint multiplier);
+    function getMultiplier(uint256 tokenId) external view returns(uint);
 
     function totalSupply() external view returns(uint);
 }
@@ -31,7 +33,7 @@ interface IScores {
     function getLandScore(uint tokenID) external view returns (uint score);
 }
 
-contract Staker is Ownable, IERC721Receiver {
+contract Staker is Ownable, ReentrancyGuard, IERC721Receiver {
 
     address public COG;
     address public LAND;
@@ -100,12 +102,8 @@ contract Staker is Ownable, IERC721Receiver {
         SCORES = scores;
     }
 
-    function setLockupPeriod(uint period) public onlyOwner {
-        LOCKUP_PERIOD = period;
-    }
-
     // for manual staking after mint
-    function stakeLand(uint[] memory tokenIds) public returns (bool success) {
+    function stakeLand(uint[] memory tokenIds) public nonReentrant returns (bool success) {
         for (uint index = 0; index < tokenIds.length; index++) {
             require(tokenIds[index] > 0 && tokenIds[index] <= 10000, "Invalid token id");
             require(ILandContract(LAND).ownerOf(tokenIds[index]) == msg.sender, "Token not your");
@@ -131,13 +129,13 @@ contract Staker is Ownable, IERC721Receiver {
                 stakedAt : block.timestamp,
                 lastRewardsClaimedAt : 0
             });
-            landBalances[msg.sender] += 1;
+            landBalances[_owner] += 1;
         }
         return true;
     }
 
     // unstake all lands or one by one
-    function unStakeLand(uint[] memory tokenIds) public returns (bool result) {
+    function unStakeLand(uint[] memory tokenIds) public nonReentrant returns (bool result) {
         for (uint index = 0; index < tokenIds.length; index++) {
             require(landBalances[msg.sender] > 0, "No tokens staked");
             StakerInfo storage stakerInfo = stakedLands[tokenIds[index]];
@@ -165,7 +163,7 @@ contract Staker is Ownable, IERC721Receiver {
         return true;
     }
 
-    function claimLandRewards(uint[] memory tokenIds) public returns (bool success) {
+    function claimLandRewards(uint[] memory tokenIds) public nonReentrant returns (bool success) {
         require(CLAIM_REWARDS, "Rewards distribution not started yet");
         require(landBalances[msg.sender] > 0, "No tokens staked");
         for (uint index = 0; index < tokenIds.length; index++) {
@@ -187,7 +185,7 @@ contract Staker is Ownable, IERC721Receiver {
     }
 
     // for estate token
-    function stakeEstate(uint[] memory tokenIds) public returns (bool result) {
+    function stakeEstate(uint[] memory tokenIds) public nonReentrant returns (bool result) {
         for (uint index = 0; index < tokenIds.length; index++) {
             require(tokenIds[index] > 0 && tokenIds[index] <= IEstateContract(ESTATE).totalSupply(), "Invalid token id");
             require(IEstateContract(ESTATE).ownerOf(tokenIds[index]) == msg.sender, "Token not your");
@@ -215,7 +213,7 @@ contract Staker is Ownable, IERC721Receiver {
         return true;
     }
 
-    function unStakeEstate(uint[] memory tokenIds) public returns (bool result) {
+    function unStakeEstate(uint[] memory tokenIds) public nonReentrant returns (bool result) {
         for (uint index = 0; index < tokenIds.length; index++) {
             require(estateBalances[msg.sender] > 0, "No tokens staked");
             StakerInfo storage stakerInfo = stakedEstates[tokenIds[index]];
@@ -240,7 +238,7 @@ contract Staker is Ownable, IERC721Receiver {
         return true;
     }
 
-    function claimEstateRewards(uint[] memory tokenIds) public returns (bool) {
+    function claimEstateRewards(uint[] memory tokenIds) public nonReentrant returns (bool) {
         require(CLAIM_REWARDS, "Rewards distribution not started yet");
         require(estateBalances[msg.sender] > 0, "No tokens staked");
         for (uint index = 0; index < tokenIds.length; index++) {
@@ -284,7 +282,7 @@ contract Staker is Ownable, IERC721Receiver {
         uint tokensPerDay = COG_EMISSIONS_PER_DAY / 100 * landScore;
         uint tokensPerSecond = tokensPerDay / 86400;
         uint stakeTimeInSeconds = block.timestamp - lastClaimedAt;
-        return (tokensPerSecond * stakeTimeInSeconds) * 10**18;
+        return tokensPerSecond * stakeTimeInSeconds;
     }
 
     function calculateTokenDistributionForEstate(uint estateId, uint lastClaimedAt) public view returns(uint amountToDistribute) {
@@ -298,7 +296,7 @@ contract Staker is Ownable, IERC721Receiver {
         uint tokensToDistribute = stakeTimeInSeconds * tokensPerSecond;
         // multiplier is supposed to be 1.multiplier
         uint multiplierAmount = (tokensToDistribute / 100) * multiplier;
-        return (tokensToDistribute + multiplierAmount) * 10**18;
+        return tokensToDistribute + multiplierAmount;
     }
 
     function onERC721Received(address, address, uint256, bytes memory) public virtual override returns (bytes4) {

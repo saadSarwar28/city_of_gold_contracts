@@ -18,6 +18,8 @@ contract CityOfGold is ERC20, Ownable{
     }
 
     function mint(uint amount, address to) public onlyOwner {
+        require(to != address(0), "Cannot mint to a zero address");
+        amount = amount * 10**18;
         require(totalSupply() + amount <= MAX_SUPPLY, "Mint exceeds max supply of the token.");
         _mint(to, amount);
     }

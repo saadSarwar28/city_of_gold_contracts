@@ -77,7 +77,6 @@ module.exports = {
         rinkeby: {
             provider: () => new HDWalletProvider(mnemonic, `https://rinkeby.infura.io/v3/${projectId}`),
             network_id: 4,
-            gas: 5500000,
             confirmations: 2,
             timeoutBlocks: 200,  // # of blocks before a deployment times out  (minimum/default: 50)
             skipDryRun: true     // Skip dry run before migrations? (default: false for public nets )
@@ -125,7 +124,7 @@ module.exports = {
             settings: {          // See the solidity docs for advice about optimization and evmVersion
                 optimizer: {
                     enabled: false,
-                    runs: 200
+                    runs: 400
                 },
                 evmVersion: "byzantium"
             }
