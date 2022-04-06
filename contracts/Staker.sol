@@ -54,10 +54,10 @@ contract Staker is Ownable, ReentrancyGuard, IERC721Receiver {
 
     // since token ids are unique so, creating a mapping with token ids instead of owner address
     mapping(uint => StakerInfo) public stakedLands;
-    mapping(address => uint) public landBalances;
+    mapping(address => uint[]) public landBalances; // total balance of each address with land token ids
 
     mapping(uint => StakerInfo) public stakedEstates;
-    mapping(address => uint) public estateBalances;
+    mapping(address => uint[]) public estateBalances;
 
     constructor (address cog, address land, address estate, address scores) {
         COG = cog;
@@ -76,6 +76,10 @@ contract Staker is Ownable, ReentrancyGuard, IERC721Receiver {
     modifier onlyEstateMinter() {
         require(msg.sender == ESTATE, "Only the estate minter contract can call this function.");
         _;
+    }
+
+    function setLockupPeriod(uint lockTime) public onlyOwner {
+        LOCKUP_PERIOD = lockTime;
     }
 
     function setCOGEmissions(uint _cogEmissionsPerDay) public onlyOwner {
@@ -102,20 +106,67 @@ contract Staker is Ownable, ReentrancyGuard, IERC721Receiver {
         SCORES = scores;
     }
 
+    function addLand(address owner, uint tokenId) public {
+        landBalances[owner].push(tokenId);
+    }
+
+    function removeLand(address owner, uint tokenId) public {
+        uint[] storage lands = landBalances[owner];
+        for (uint index = 0; index < lands.length; index++) {
+            if (lands[index] == tokenId) {
+                lands[index] = 0;
+            }
+        }
+    }
+
+    function checkLandPresent(address owner, uint tokenId) public view returns(bool answer) {
+        uint[] storage lands = landBalances[owner];
+        for (uint index = 0; index < lands.length; index++) {
+            if (lands[index] == tokenId) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    function addEstate(address owner, uint tokenId) public {
+        estateBalances[owner].push(tokenId);
+    }
+
+    function removeEstate(address owner, uint tokenId) public {
+        uint[] storage estates = estateBalances[owner];
+        for (uint index = 0; index < estates.length; index++) {
+            if (estates[index] == tokenId) {
+                estates[index] = 0;
+            }
+        }
+    }
+
+    function checkEstatePresent(address owner, uint tokenId) public view returns(bool answer) {
+        uint[] storage estates = estateBalances[owner];
+        for (uint index = 0; index < estates.length; index++) {
+            if (estates[index] == tokenId) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+
     // for manual staking after mint
     function stakeLand(uint[] memory tokenIds) public nonReentrant returns (bool success) {
         for (uint index = 0; index < tokenIds.length; index++) {
             require(tokenIds[index] > 0 && tokenIds[index] <= 10000, "Invalid token id");
-            require(ILandContract(LAND).ownerOf(tokenIds[index]) == msg.sender, "Token not your");
+            require(ILandContract(LAND).ownerOf(tokenIds[index]) == msg.sender, "Not your Token");
             require(stakedLands[tokenIds[index]].stakedAt == 0, "Token already staked");
             ILandContract(LAND).transferFrom(msg.sender, address(this), tokenIds[index]);
             stakedLands[tokenIds[index]] =
             StakerInfo({
-                owner : msg.sender,
-                stakedAt : block.timestamp,
-                lastRewardsClaimedAt : 0
+            owner : msg.sender,
+            stakedAt : block.timestamp,
+            lastRewardsClaimedAt : 0
             });
-            landBalances[msg.sender] += 1;
+            addLand(msg.sender, tokenIds[index]);
         }
         return true;
     }
@@ -125,11 +176,11 @@ contract Staker is Ownable, ReentrancyGuard, IERC721Receiver {
         for (uint index = 0; index < tokenIds.length; index++) {
             stakedLands[tokenIds[index]] =
             StakerInfo({
-                owner : _owner,
-                stakedAt : block.timestamp,
-                lastRewardsClaimedAt : 0
+            owner : _owner,
+            stakedAt : block.timestamp,
+            lastRewardsClaimedAt : 0
             });
-            landBalances[_owner] += 1;
+            addLand(_owner, tokenIds[index]);
         }
         return true;
     }
@@ -137,7 +188,7 @@ contract Staker is Ownable, ReentrancyGuard, IERC721Receiver {
     // unstake all lands or one by one
     function unStakeLand(uint[] memory tokenIds) public nonReentrant returns (bool result) {
         for (uint index = 0; index < tokenIds.length; index++) {
-            require(landBalances[msg.sender] > 0, "No tokens staked");
+            require(checkLandPresent(msg.sender, tokenIds[index]), "No tokens staked");
             StakerInfo storage stakerInfo = stakedLands[tokenIds[index]];
             require(stakerInfo.owner == msg.sender, "Not your token");
             require(stakerInfo.stakedAt > 0, "Not staked yet");
@@ -157,7 +208,7 @@ contract Staker is Ownable, ReentrancyGuard, IERC721Receiver {
             stakerInfo.owner = address(0);
             stakerInfo.stakedAt = 0;
             stakerInfo.lastRewardsClaimedAt = block.timestamp;
-            landBalances[msg.sender] -= 1;
+            removeLand(msg.sender, tokenIds[index]);
         }
 
         return true;
@@ -165,8 +216,9 @@ contract Staker is Ownable, ReentrancyGuard, IERC721Receiver {
 
     function claimLandRewards(uint[] memory tokenIds) public nonReentrant returns (bool success) {
         require(CLAIM_REWARDS, "Rewards distribution not started yet");
-        require(landBalances[msg.sender] > 0, "No tokens staked");
+        require(landBalances[msg.sender].length > 0, "No tokens staked");
         for (uint index = 0; index < tokenIds.length; index++) {
+            require(checkLandPresent(msg.sender, tokenIds[index]), "Not staked");
             StakerInfo storage stakerInfo = stakedLands[tokenIds[index]];
             require(stakerInfo.owner == msg.sender, "Not your token");
             require(stakerInfo.stakedAt > 0, "Not staked yet");
@@ -193,11 +245,11 @@ contract Staker is Ownable, ReentrancyGuard, IERC721Receiver {
             IEstateContract(ESTATE).transferFrom(msg.sender, address(this), tokenIds[index]);
             stakedEstates[tokenIds[index]] =
             StakerInfo({
-                owner : msg.sender,
-                stakedAt : block.timestamp,
-                lastRewardsClaimedAt : 0
+            owner : msg.sender,
+            stakedAt : block.timestamp,
+            lastRewardsClaimedAt : 0
             });
-            estateBalances[msg.sender] += 1;
+            addEstate(msg.sender, tokenIds[index]);
         }
         return true;
     }
@@ -205,17 +257,17 @@ contract Staker is Ownable, ReentrancyGuard, IERC721Receiver {
     function stakeEstateFromMinter(uint tokenId, address _owner) public onlyEstateMinter returns(bool) {
         stakedEstates[tokenId] =
         StakerInfo({
-            owner : _owner,
-            stakedAt : block.timestamp,
-            lastRewardsClaimedAt : 0
+        owner : _owner,
+        stakedAt : block.timestamp,
+        lastRewardsClaimedAt : 0
         });
-        estateBalances[_owner] += 1;
+        addEstate(_owner, tokenId);
         return true;
     }
 
     function unStakeEstate(uint[] memory tokenIds) public nonReentrant returns (bool result) {
         for (uint index = 0; index < tokenIds.length; index++) {
-            require(estateBalances[msg.sender] > 0, "No tokens staked");
+            require(checkEstatePresent(msg.sender, tokenIds[index]), "No tokens staked");
             StakerInfo storage stakerInfo = stakedEstates[tokenIds[index]];
             require(stakerInfo.owner == msg.sender, "Not your token");
             require(stakerInfo.stakedAt > 0, "Not staked yet");
@@ -233,15 +285,16 @@ contract Staker is Ownable, ReentrancyGuard, IERC721Receiver {
             stakerInfo.owner = address(0);
             stakerInfo.stakedAt = 0;
             stakerInfo.lastRewardsClaimedAt = 0;
-            estateBalances[msg.sender] -= 1;
+            removeEstate(msg.sender, tokenIds[index]);
         }
         return true;
     }
 
     function claimEstateRewards(uint[] memory tokenIds) public nonReentrant returns (bool) {
         require(CLAIM_REWARDS, "Rewards distribution not started yet");
-        require(estateBalances[msg.sender] > 0, "No tokens staked");
+        require(estateBalances[msg.sender].length > 0, "No tokens staked");
         for (uint index = 0; index < tokenIds.length; index++) {
+            require(checkEstatePresent(msg.sender, tokenIds[index]), "Not staked");
             StakerInfo storage stakerInfo = stakedEstates[tokenIds[index]];
             require(stakerInfo.owner == msg.sender, "Not your token");
             require(stakerInfo.stakedAt > 0, "Not staked yet");
@@ -279,8 +332,8 @@ contract Staker is Ownable, ReentrancyGuard, IERC721Receiver {
 
     function calculateTokenDistributionForLand(uint tokenId, uint lastClaimedAt) public view returns(uint amountToDistribute) {
         uint landScore = IScores(SCORES).getLandScore(tokenId);
-        uint tokensPerDay = COG_EMISSIONS_PER_DAY / 100 * landScore;
-        uint tokensPerSecond = tokensPerDay / 86400;
+        uint tokensPerDay = (COG_EMISSIONS_PER_DAY / 100) * landScore;
+        uint tokensPerSecond = (tokensPerDay * 10**18) / 86400; // raising power of tokens per day to divide by a larger denominator
         uint stakeTimeInSeconds = block.timestamp - lastClaimedAt;
         return tokensPerSecond * stakeTimeInSeconds;
     }
@@ -291,11 +344,11 @@ contract Staker is Ownable, ReentrancyGuard, IERC721Receiver {
         uint multiplier = IEstateContract(ESTATE).getMultiplier(estateId);
 
         uint cogDistributionPerDay = (COG_EMISSIONS_PER_DAY / 100) * estateScore;
-        uint tokensPerSecond = cogDistributionPerDay / 86400;
+        uint tokensPerSecond = (cogDistributionPerDay * 10**18) / 86400; // raising power of tokens per day to divide by a larger denominator
         uint stakeTimeInSeconds = block.timestamp - lastClaimedAt;
         uint tokensToDistribute = stakeTimeInSeconds * tokensPerSecond;
         // multiplier is supposed to be 1.multiplier
-        uint multiplierAmount = (tokensToDistribute / 100) * multiplier;
+        uint multiplierAmount = (tokensToDistribute / 10) * multiplier;
         return tokensToDistribute + multiplierAmount;
     }
 

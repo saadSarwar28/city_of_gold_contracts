@@ -1,4 +1,6 @@
 const Staker = artifacts.require("Staker");
+const CityOfGoldScores = artifacts.require("CityOfGoldScores");
+const cityOfGoldEstate = artifacts.require("cityOfGoldEstate");
 
 module.exports = async function (deployer) {
 
@@ -10,4 +12,6 @@ module.exports = async function (deployer) {
     // )
     // const staker = await Staker.deployed()
 
+    // await deployer.deploy(cityOfGoldEstate, "0xA3dF354A5614b2a9B2cCC3a2220EbE558c0bbc9A", "0x0f4CA49d770C216A66270fA96480669E21a45444");
+    await deployer.deploy(CityOfGoldScores);
 };

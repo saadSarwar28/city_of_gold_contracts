@@ -30,6 +30,8 @@ contract cityOfGoldLand is ERC721Enumerable, Ownable, ReentrancyGuard {
 
     bytes32 public merkleRoot;
 
+    uint public MAX_PER_WALLET;
+
     mapping(address => bool) public whitelistClaimed;
 
     uint256 public MAX_SUPPLY; // max supply of nfts
@@ -50,11 +52,12 @@ contract cityOfGoldLand is ERC721Enumerable, Ownable, ReentrancyGuard {
 
     event NftMinted(address to, uint date, uint tokenId, string tokenURI); // Used to generate NFT data on external decentralized storage service
 
-    constructor(uint256 maxNftSupply, address payable _treasury, uint publicSalePrice, uint _whiteListPrice) ERC721("City Of Gold LAND", "LAND") {
+    constructor(uint256 maxNftSupply, address payable _treasury, uint publicSalePrice, uint _whiteListPrice, uint maxPerWallet) ERC721("City Of Gold LAND", "LAND") {
         MAX_SUPPLY = maxNftSupply;
         treasury = _treasury;
         nftPrice = publicSalePrice;
         whitelistPrice = _whiteListPrice;
+        MAX_PER_WALLET = maxPerWallet;
     }
 
     function setStakerAddress(address staker) public onlyOwner {
@@ -101,6 +104,10 @@ contract cityOfGoldLand is ERC721Enumerable, Ownable, ReentrancyGuard {
         saleIsActive = !saleIsActive;
     }
 
+    function setMaxPerWallet(uint maxPerWallet) public onlyOwner {
+        MAX_PER_WALLET = maxPerWallet;
+    }
+
     /*
     * for whitelist sale
     */
@@ -131,7 +138,8 @@ contract cityOfGoldLand is ERC721Enumerable, Ownable, ReentrancyGuard {
 
     // the default mint function for public sale
     function publicMint(uint amount, bool stake) public payable nonReentrant {
-        require(amount > 0 && amount < 5, "Cannot be more than five");
+        require(amount > 0 && amount < MAX_PER_WALLET, "Cannot be more than max per wallet limit");
+        require(balanceOf(msg.sender) + amount <= MAX_PER_WALLET, "Max limit per wallet exceeded");
         require(nftPrice > 0, "NFT price not set yet");
         require(treasury != address(0), "Treasury address not set yet");
         require(saleIsActive, "Sale must be active to mint nft");

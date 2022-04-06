@@ -71,6 +71,10 @@ typings/
 # dotenv environment variables file
 .env
 .env.test
+.bscscanApiKey
+.etherscanApiKey
+.projectId
+.secret
 
 # parcel-bundler cache (https://parceljs.org/)
 .cache
