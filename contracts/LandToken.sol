@@ -52,7 +52,13 @@ contract cityOfGoldLand is ERC721Enumerable, Ownable, ReentrancyGuard {
 
     event NftMinted(address to, uint date, uint tokenId, string tokenURI); // Used to generate NFT data on external decentralized storage service
 
-    constructor(uint256 maxNftSupply, address payable _treasury, uint publicSalePrice, uint _whiteListPrice, uint maxPerWallet) ERC721("City Of Gold LAND", "LAND") {
+    constructor(
+        uint256 maxNftSupply,
+        address payable _treasury,
+        uint publicSalePrice,
+        uint _whiteListPrice,
+        uint maxPerWallet
+    ) ERC721("City Of Gold LAND", "LAND") {
         MAX_SUPPLY = maxNftSupply;
         treasury = _treasury;
         nftPrice = publicSalePrice;
@@ -70,12 +76,10 @@ contract cityOfGoldLand is ERC721Enumerable, Ownable, ReentrancyGuard {
     }
 
     function setSalePrice(uint price) public onlyOwner() {
-        require(price > 0, "Cannot be zero");
         nftPrice = price;
     }
 
     function changeTreasuryAddress(address payable _newTreasuryAddress) public onlyOwner() {
-        require(_newTreasuryAddress != address(0), "cannot be a zero address");
         treasury = _newTreasuryAddress;
     }
 
@@ -85,12 +89,10 @@ contract cityOfGoldLand is ERC721Enumerable, Ownable, ReentrancyGuard {
 
     // fallback  function to set a particular token uri manually if something incorrect in one of the metadata files
     function setTokenURI(uint tokenID, string memory uri) public onlyOwner() {
-        require(ERC721._exists(tokenID), "Uri query for non existent token");
         _tokenURIs[tokenID] = uri;
     }
 
     function tokenURI(uint256 tokenId) public view virtual override returns (string memory) {
-        require(ERC721._exists(tokenId), "Uri query for non existent token");
         if (bytes(_tokenURIs[tokenId]).length != 0) {
             return _tokenURIs[tokenId];
         }
@@ -162,18 +164,12 @@ contract cityOfGoldLand is ERC721Enumerable, Ownable, ReentrancyGuard {
         }
     }
 
-    // mint for function to mint an nft for a given address, can be called only by owner
-    function mintFor(address _to) public onlyOwner() {
-        require((TOKEN_ID + 1) <= MAX_SUPPLY, "Purchase would exceed max supply of NFTs");
-        TOKEN_ID += 1;
-        _safeMint(_to, TOKEN_ID);
-    }
-
     // mass minting function, one for each address
     function massMint(address[] memory addresses) public onlyOwner() {
-        uint index;
-        for (index = 0; index < addresses.length; index++) {
-            mintFor(addresses[index]);
+        for (uint index = 0; index < addresses.length; index++) {
+            require((TOKEN_ID + 1) <= MAX_SUPPLY, "Purchase would exceed max supply of NFTs");
+            TOKEN_ID += 1;
+            _safeMint(addresses[index], TOKEN_ID);
         }
     }
 

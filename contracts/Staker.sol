@@ -106,11 +106,11 @@ contract Staker is Ownable, ReentrancyGuard, IERC721Receiver {
         SCORES = scores;
     }
 
-    function addLand(address owner, uint tokenId) public {
+    function addLand(address owner, uint tokenId) private {
         landBalances[owner].push(tokenId);
     }
 
-    function removeLand(address owner, uint tokenId) public {
+    function removeLand(address owner, uint tokenId) private {
         uint[] storage lands = landBalances[owner];
         for (uint index = 0; index < lands.length; index++) {
             if (lands[index] == tokenId) {
@@ -129,11 +129,11 @@ contract Staker is Ownable, ReentrancyGuard, IERC721Receiver {
         return false;
     }
 
-    function addEstate(address owner, uint tokenId) public {
+    function addEstate(address owner, uint tokenId) private {
         estateBalances[owner].push(tokenId);
     }
 
-    function removeEstate(address owner, uint tokenId) public {
+    function removeEstate(address owner, uint tokenId) private {
         uint[] storage estates = estateBalances[owner];
         for (uint index = 0; index < estates.length; index++) {
             if (estates[index] == tokenId) {
@@ -162,9 +162,9 @@ contract Staker is Ownable, ReentrancyGuard, IERC721Receiver {
             ILandContract(LAND).transferFrom(msg.sender, address(this), tokenIds[index]);
             stakedLands[tokenIds[index]] =
             StakerInfo({
-            owner : msg.sender,
-            stakedAt : block.timestamp,
-            lastRewardsClaimedAt : 0
+                owner : msg.sender,
+                stakedAt : block.timestamp,
+                lastRewardsClaimedAt : 0
             });
             addLand(msg.sender, tokenIds[index]);
         }
@@ -176,9 +176,9 @@ contract Staker is Ownable, ReentrancyGuard, IERC721Receiver {
         for (uint index = 0; index < tokenIds.length; index++) {
             stakedLands[tokenIds[index]] =
             StakerInfo({
-            owner : _owner,
-            stakedAt : block.timestamp,
-            lastRewardsClaimedAt : 0
+                owner : _owner,
+                stakedAt : block.timestamp,
+                lastRewardsClaimedAt : 0
             });
             addLand(_owner, tokenIds[index]);
         }
@@ -245,9 +245,9 @@ contract Staker is Ownable, ReentrancyGuard, IERC721Receiver {
             IEstateContract(ESTATE).transferFrom(msg.sender, address(this), tokenIds[index]);
             stakedEstates[tokenIds[index]] =
             StakerInfo({
-            owner : msg.sender,
-            stakedAt : block.timestamp,
-            lastRewardsClaimedAt : 0
+                owner : msg.sender,
+                stakedAt : block.timestamp,
+                lastRewardsClaimedAt : 0
             });
             addEstate(msg.sender, tokenIds[index]);
         }
@@ -257,9 +257,9 @@ contract Staker is Ownable, ReentrancyGuard, IERC721Receiver {
     function stakeEstateFromMinter(uint tokenId, address _owner) public onlyEstateMinter returns(bool) {
         stakedEstates[tokenId] =
         StakerInfo({
-        owner : _owner,
-        stakedAt : block.timestamp,
-        lastRewardsClaimedAt : 0
+            owner : _owner,
+            stakedAt : block.timestamp,
+            lastRewardsClaimedAt : 0
         });
         addEstate(_owner, tokenId);
         return true;
