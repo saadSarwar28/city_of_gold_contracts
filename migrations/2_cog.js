@@ -23,7 +23,7 @@ module.exports = async function (deployer) {
     const maxNfts = 10000
     const treasury = '0xA97F7EB14da5568153Ea06b2656ccF7c338d942f' // saad's address
     const publicSalePrice = '150000000000000000'  // 0.15 ether
-    const whitelistPrice = '100000000000000000'  // 0.1 ether
+    const whitelistPrice =  '120000000000000000'  // 0.12 ether
     const maxPerWallet = 9
     await deployer.deploy(cityOfGoldLand, maxNfts, treasury, publicSalePrice, whitelistPrice, maxPerWallet);
     const landContract = await cityOfGoldLand.deployed()
