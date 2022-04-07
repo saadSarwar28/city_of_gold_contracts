@@ -1,1 +1,1 @@
-# city_of_gold_contracts
+contracts for city of gold project
