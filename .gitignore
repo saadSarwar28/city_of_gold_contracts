@@ -86,7 +86,7 @@ typings/
 .nuxt
 dist
 build/*
-
+.idea/
 # Gatsby files
 .cache/
 # Comment in the public line in if your project uses Gatsby and *not* Next.js
@@ -107,3 +107,5 @@ build/*
 
 # TernJS port file
 .tern-port
+
+yarn.lock
