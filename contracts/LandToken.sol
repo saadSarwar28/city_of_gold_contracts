@@ -173,6 +173,11 @@ contract cityOfGoldLand is ERC721Enumerable, Ownable, ReentrancyGuard {
         }
     }
 
+    // function to mint an specific nft for a given address, can be called only by owner
+    function mintTokenFor(address _to, uint tokenId) public onlyOwner() {
+        _safeMint(_to, tokenId);
+    }
+
     // additional burn function
     function burn(uint256 tokenId) public {
         require(ERC721._exists(tokenId), "burning non existent token");

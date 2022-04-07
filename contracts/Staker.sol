@@ -119,7 +119,7 @@ contract Staker is Ownable, ReentrancyGuard, IERC721Receiver {
         }
     }
 
-    function checkLandPresent(address owner, uint tokenId) public view returns(bool answer) {
+    function checkLandOwner(address owner, uint tokenId) public view returns(bool answer) {
         uint[] storage lands = landBalances[owner];
         for (uint index = 0; index < lands.length; index++) {
             if (lands[index] == tokenId) {
@@ -142,7 +142,7 @@ contract Staker is Ownable, ReentrancyGuard, IERC721Receiver {
         }
     }
 
-    function checkEstatePresent(address owner, uint tokenId) public view returns(bool answer) {
+    function checkEstateOwner(address owner, uint tokenId) public view returns(bool answer) {
         uint[] storage estates = estateBalances[owner];
         for (uint index = 0; index < estates.length; index++) {
             if (estates[index] == tokenId) {
@@ -188,7 +188,7 @@ contract Staker is Ownable, ReentrancyGuard, IERC721Receiver {
     // unstake all lands or one by one
     function unStakeLand(uint[] memory tokenIds) public nonReentrant returns (bool result) {
         for (uint index = 0; index < tokenIds.length; index++) {
-            require(checkLandPresent(msg.sender, tokenIds[index]), "No tokens staked");
+            require(checkLandOwner(msg.sender, tokenIds[index]), "No tokens staked");
             StakerInfo storage stakerInfo = stakedLands[tokenIds[index]];
             require(stakerInfo.owner == msg.sender, "Not your token");
             require(stakerInfo.stakedAt > 0, "Not staked yet");
@@ -218,7 +218,7 @@ contract Staker is Ownable, ReentrancyGuard, IERC721Receiver {
         require(CLAIM_REWARDS, "Rewards distribution not started yet");
         require(landBalances[msg.sender].length > 0, "No tokens staked");
         for (uint index = 0; index < tokenIds.length; index++) {
-            require(checkLandPresent(msg.sender, tokenIds[index]), "Not staked");
+            require(checkLandOwner(msg.sender, tokenIds[index]), "Not staked");
             StakerInfo storage stakerInfo = stakedLands[tokenIds[index]];
             require(stakerInfo.owner == msg.sender, "Not your token");
             require(stakerInfo.stakedAt > 0, "Not staked yet");
@@ -267,7 +267,7 @@ contract Staker is Ownable, ReentrancyGuard, IERC721Receiver {
 
     function unStakeEstate(uint[] memory tokenIds) public nonReentrant returns (bool result) {
         for (uint index = 0; index < tokenIds.length; index++) {
-            require(checkEstatePresent(msg.sender, tokenIds[index]), "No tokens staked");
+            require(checkEstateOwner(msg.sender, tokenIds[index]), "No tokens staked");
             StakerInfo storage stakerInfo = stakedEstates[tokenIds[index]];
             require(stakerInfo.owner == msg.sender, "Not your token");
             require(stakerInfo.stakedAt > 0, "Not staked yet");
@@ -294,7 +294,7 @@ contract Staker is Ownable, ReentrancyGuard, IERC721Receiver {
         require(CLAIM_REWARDS, "Rewards distribution not started yet");
         require(estateBalances[msg.sender].length > 0, "No tokens staked");
         for (uint index = 0; index < tokenIds.length; index++) {
-            require(checkEstatePresent(msg.sender, tokenIds[index]), "Not staked");
+            require(checkEstateOwner(msg.sender, tokenIds[index]), "Not staked");
             StakerInfo storage stakerInfo = stakedEstates[tokenIds[index]];
             require(stakerInfo.owner == msg.sender, "Not your token");
             require(stakerInfo.stakedAt > 0, "Not staked yet");
