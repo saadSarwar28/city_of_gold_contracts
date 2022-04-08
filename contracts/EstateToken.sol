@@ -5,7 +5,7 @@
  */
 
 
-pragma solidity ^0.8.4;
+pragma solidity ^0.8.10;
 
 
 import "openzeppelin-solidity/contracts/access/Ownable.sol";
@@ -28,7 +28,9 @@ interface ILandContract {
 }
 
 interface IScores {
-    function getLandScore(uint tokenID) external view returns (uint score);
+    function getLandScore(uint tokenI) external view returns (uint score);
+    function getEstateScore(uint tokenId) external view returns (uint score);
+    function getEstateMultiplier(uint tokenId) external view returns (uint score);
 }
 
 contract cityOfGoldEstate is ERC721Enumerable, Ownable, IERC721Receiver, ReentrancyGuard {
@@ -50,9 +52,6 @@ contract cityOfGoldEstate is ERC721Enumerable, Ownable, IERC721Receiver, Reentra
 
     // mapping for estate token id to the land token ids burned to make the estate
     mapping (uint => uint[]) public landIds;
-
-    // mapping for estate multiplier
-    mapping (uint => uint) public estateMultiplier;
 
     constructor(address scores, address land) ERC721("City Of Gold ESTATE", "ESTATE") {
         SCORES = scores;
@@ -116,17 +115,12 @@ contract cityOfGoldEstate is ERC721Enumerable, Ownable, IERC721Receiver, Reentra
 
     // get total score of a estate
     function getScore(uint256 tokenId) public view returns(uint score) {
-        uint[] storage _landIds = landIds[tokenId];
-        return IScores(SCORES).getLandScore(_landIds[0]) + IScores(SCORES).getLandScore(_landIds[1]) + IScores(SCORES).getLandScore(_landIds[2]);
+        return IScores(SCORES).getEstateScore(tokenId);
     }
 
     // get multiplier of a estate
     function getMultiplier(uint256 tokenId) public view returns(uint multiplier) {
-        return estateMultiplier[tokenId];
-    }
-
-    function setMultiplier(uint estateId, uint multiplier) public onlyOwner {
-        estateMultiplier[estateId] = multiplier;
+        return IScores(SCORES).getEstateMultiplier(tokenId);
     }
 
     function onERC721Received(address, address, uint256, bytes memory) public virtual override returns (bytes4) {

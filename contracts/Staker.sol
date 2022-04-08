@@ -9,19 +9,12 @@ import "openzeppelin-solidity/contracts/token/ERC721/IERC721Receiver.sol";
 
 interface ILandContract {
     function ownerOf(uint256 tokenId) external returns (address);
-
     function transferFrom(address from, address to, uint256 tokenId) external;
 }
 
 interface IEstateContract {
     function ownerOf(uint256 tokenId) external returns (address);
-
     function transferFrom(address from, address to, uint256 tokenId) external;
-
-    function getScore(uint256 tokenId) external view returns(uint);
-
-    function getMultiplier(uint256 tokenId) external view returns(uint);
-
     function totalSupply() external view returns(uint);
 }
 
@@ -31,6 +24,8 @@ interface ICogToken {
 
 interface IScores {
     function getLandScore(uint tokenID) external view returns (uint score);
+    function getEstateScore(uint tokenId) external view returns (uint score);
+    function getEstateMultiplier(uint tokenId) external view returns (uint score);
 }
 
 contract Staker is Ownable, ReentrancyGuard, IERC721Receiver {
@@ -312,16 +307,7 @@ contract Staker is Ownable, ReentrancyGuard, IERC721Receiver {
         return true;
     }
 
-    // emergency withdrawal functions
-
-    function withdrawNFTs(uint tokenID, bool _isLand) public onlyOwner {
-        if (_isLand) {
-            ILandContract(LAND).transferFrom(address(this), msg.sender, tokenID);
-        } else {
-            IEstateContract(ESTATE).transferFrom(address(this), msg.sender, tokenID);
-        }
-    }
-
+    // emergency withdrawal function
     function withdrawCOG(uint _amount) public onlyOwner {
         ICogToken(COG).transfer(msg.sender, _amount);
     }
@@ -340,8 +326,8 @@ contract Staker is Ownable, ReentrancyGuard, IERC721Receiver {
 
     function calculateTokenDistributionForEstate(uint estateId, uint lastClaimedAt) public view returns(uint amountToDistribute) {
 
-        uint estateScore = IEstateContract(ESTATE).getScore(estateId);
-        uint multiplier = IEstateContract(ESTATE).getMultiplier(estateId);
+        uint estateScore = IScores(SCORES).getEstateScore(estateId);
+        uint multiplier = IScores(SCORES).getEstateMultiplier(estateId);
 
         uint cogDistributionPerDay = (COG_EMISSIONS_PER_DAY / 100) * estateScore;
         uint tokensPerSecond = (cogDistributionPerDay * 10**18) / 86400; // raising power of tokens per day to divide by a larger denominator
