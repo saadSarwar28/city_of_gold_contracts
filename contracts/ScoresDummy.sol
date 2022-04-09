@@ -4,7 +4,7 @@ pragma solidity ^0.8.4;
 
 import "openzeppelin-solidity/contracts/access/Ownable.sol";
 
-contract CityOfGoldScores is Ownable {
+contract CityOfGoldScoresDummy is Ownable {
 
     mapping (uint => uint) public scores;
 
