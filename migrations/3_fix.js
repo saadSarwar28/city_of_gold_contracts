@@ -13,12 +13,12 @@ module.exports = async function (deployer) {
     // await deployer.deploy(cityOfGoldLand, maxNfts, treasury, publicSalePrice, whitelistPrice, maxPerWallet);
     // const landContract = await cityOfGoldLand.deployed()
 
-    // await deployer.deploy(Staker,
-    //     "0x6A5d97788D4339Ee9FEB0Bbb0257a3e81d18db9b",
-    //     landContract.address,
-    //     "0xA82a1cF2621753De77ACA71B4A9Ba7A2c8119b8b",
-    //     "0xb996555807A52Fe9D61DA61e1cc15E35B0DFacDb"
-    // )
+    await deployer.deploy(Staker,
+        "0x6A5d97788D4339Ee9FEB0Bbb0257a3e81d18db9b",
+        "0x945DF3A54Fa8dF92e97aeD79b575DC0427fB5FEB",
+        "0xA82a1cF2621753De77ACA71B4A9Ba7A2c8119b8b",
+        "0xb996555807A52Fe9D61DA61e1cc15E35B0DFacDb"
+    )
     // const staker = await Staker.deployed()
 
     // await deployer.deploy(cityOfGoldEstate, "0xA3dF354A5614b2a9B2cCC3a2220EbE558c0bbc9A", "0x0f4CA49d770C216A66270fA96480669E21a45444");

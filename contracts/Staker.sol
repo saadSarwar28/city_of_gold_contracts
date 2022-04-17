@@ -50,9 +50,11 @@ contract Staker is Ownable, ReentrancyGuard, IERC721Receiver {
     // since token ids are unique so, creating a mapping with token ids instead of owner address
     mapping(uint => StakerInfo) public stakedLands;
     mapping(address => uint[]) public landBalances; // total balance of each address with land token ids
+    mapping(address => uint) public totalLandsStaked; // convenience for frontend and to store in landBalance
 
     mapping(uint => StakerInfo) public stakedEstates;
     mapping(address => uint[]) public estateBalances;
+    mapping(address => uint) public totalEstatesStaked;
 
     constructor (address cog, address land, address estate, address scores) {
         COG = cog;
@@ -103,6 +105,7 @@ contract Staker is Ownable, ReentrancyGuard, IERC721Receiver {
 
     function addLand(address owner, uint tokenId) private {
         landBalances[owner].push(tokenId);
+        totalLandsStaked[owner] += 1;
     }
 
     function removeLand(address owner, uint tokenId) private {
@@ -112,6 +115,7 @@ contract Staker is Ownable, ReentrancyGuard, IERC721Receiver {
                 lands[index] = 0;
             }
         }
+        totalLandsStaked[owner] -= 1;
     }
 
     function checkLandOwner(address owner, uint tokenId) public view returns(bool answer) {
@@ -124,8 +128,23 @@ contract Staker is Ownable, ReentrancyGuard, IERC721Receiver {
         return false;
     }
 
+    // land balances will have some zeros because of the deletion. for view only
+    function returnAllLandsOfOwner(address owner) public view returns(uint[] memory _totalLandsStaked) {
+        uint[] storage lands = landBalances[owner];
+        uint[] memory ownedLands = new uint[](totalLandsStaked[owner]);
+        uint ownedLandsIndex= 0;
+        for (uint index = 0; index < lands.length; index++) {
+            if (lands[index] != 0) {
+                ownedLands[ownedLandsIndex] = lands[index];
+                ownedLandsIndex += 1;
+            }
+        }
+        return ownedLands;
+    }
+
     function addEstate(address owner, uint tokenId) private {
         estateBalances[owner].push(tokenId);
+        totalEstatesStaked[owner] += 1;
     }
 
     function removeEstate(address owner, uint tokenId) private {
@@ -135,6 +154,7 @@ contract Staker is Ownable, ReentrancyGuard, IERC721Receiver {
                 estates[index] = 0;
             }
         }
+        totalEstatesStaked[owner] -= 1;
     }
 
     function checkEstateOwner(address owner, uint tokenId) public view returns(bool answer) {
@@ -147,6 +167,19 @@ contract Staker is Ownable, ReentrancyGuard, IERC721Receiver {
         return false;
     }
 
+    // balances will have some zeros because of the deletion. for view only
+    function returnAllEstatesOfOwner(address owner) public view returns(uint[] memory _totalEstatesStaked) {
+        uint[] storage estates = estateBalances[owner];
+        uint[] memory ownedEstates = new uint[](totalEstatesStaked[owner]);
+        uint ownedEstatesIndex= 0;
+        for (uint index = 0; index < estates.length; index++) {
+            if (estates[index] != 0) {
+                ownedEstates[ownedEstatesIndex] = estates[index];
+                ownedEstatesIndex += 1;
+            }
+        }
+        return ownedEstates;
+    }
 
     // for manual staking after mint
     function stakeLand(uint[] memory tokenIds) public nonReentrant returns (bool success) {

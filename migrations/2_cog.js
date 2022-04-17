@@ -20,7 +20,7 @@ module.exports = async function (deployer) {
     await cogContract.mint("1000", "0x5340fc6cA1315bcFBbdEc73686247DDCD0f38F98") // minting 1000 for test
 
 
-    const maxNfts = 10000
+    const maxNfts = 30
     const treasury = '0xA97F7EB14da5568153Ea06b2656ccF7c338d942f' // saad's address
     const publicSalePrice = '150000000000000000'  // 0.15 ether
     const whitelistPrice =  '120000000000000000'  // 0.12 ether

@@ -28,6 +28,8 @@ contract cityOfGoldLand is ERC721Enumerable, Ownable, ReentrancyGuard {
 
     string public PROVENANCE_HASH = "";
 
+    uint public STARTING_INDEX;
+
     bytes32 public merkleRoot;
 
     uint public MAX_PER_WALLET;
@@ -96,6 +98,10 @@ contract cityOfGoldLand is ERC721Enumerable, Ownable, ReentrancyGuard {
         if (bytes(_tokenURIs[tokenId]).length != 0) {
             return _tokenURIs[tokenId];
         }
+        uint _tokenId = tokenId + STARTING_INDEX;
+        if (_tokenId > MAX_SUPPLY) {
+            _tokenId = _tokenId - MAX_SUPPLY;
+        }
         return string(abi.encodePacked(baseTokenURI, Strings.toString(tokenId)));
     }
 
@@ -162,6 +168,18 @@ contract cityOfGoldLand is ERC721Enumerable, Ownable, ReentrancyGuard {
                 _safeMint(msg.sender, TOKEN_ID);
             }
         }
+        if (TOKEN_ID == MAX_SUPPLY) {
+            setStartingIndex();
+        }
+    }
+
+    function setStartingIndex() private {
+        STARTING_INDEX = block.timestamp % MAX_SUPPLY;
+    }
+
+    // for emergency reveal
+    function setStartingIndex(uint index) public onlyOwner {
+        STARTING_INDEX = index;
     }
 
     // mass minting function, one for each address

@@ -68,11 +68,11 @@ contract CityOfGoldScores is Ownable {
         return getLandScore(IEstate(ESTATE).landIds(tokenId, 0)) + getLandScore(IEstate(ESTATE).landIds(tokenId, 1)) + getLandScore(IEstate(ESTATE).landIds(tokenId, 2));
     }
 
-    function getTierMultiplier(uint tokenScore) public view returns (uint multiplierOne) {
+    function getTierMultiplier(uint tokenScore) public view returns (uint multiplier) {
         for (uint index = 0; index < totalTiers; index++) {
             Tier storage tier = tierList[index];
             if (tokenScore >= tier.min && tokenScore <= tier.max) {
-                multiplierOne = tier.multiplier;
+                return tier.multiplier;
             }
         }
     }
