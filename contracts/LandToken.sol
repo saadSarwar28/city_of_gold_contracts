@@ -146,8 +146,7 @@ contract cityOfGoldLand is ERC721Enumerable, Ownable, ReentrancyGuard {
 
     // the default mint function for public sale
     function publicMint(uint amount, bool stake) public payable nonReentrant {
-        require(amount > 0 && amount < MAX_PER_WALLET, "Cannot be more than max per wallet limit");
-        require(balanceOf(msg.sender) + amount <= MAX_PER_WALLET, "Max limit per wallet exceeded");
+        require(amount > 0 && amount < MAX_PER_WALLET, "Cannot be more than max per wallet at a time limit");
         require(nftPrice > 0, "NFT price not set yet");
         require(treasury != address(0), "Treasury address not set yet");
         require(saleIsActive, "Sale must be active to mint nft");
