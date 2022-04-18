@@ -218,19 +218,8 @@ contract Staker is Ownable, ReentrancyGuard, IERC721Receiver {
         for (uint index = 0; index < tokenIds.length; index++) {
             require(checkLandOwner(msg.sender, tokenIds[index]), "No tokens staked");
             StakerInfo storage stakerInfo = stakedLands[tokenIds[index]];
-            require(stakerInfo.owner == msg.sender, "Not your token");
-            require(stakerInfo.stakedAt > 0, "Not staked yet");
-            uint countRewardsFrom;
-            if (stakerInfo.lastRewardsClaimedAt > 0) {
-                countRewardsFrom = stakerInfo.lastRewardsClaimedAt;
-            } else {
-                countRewardsFrom = stakerInfo.stakedAt;
-            }
-            if (CLAIM_REWARDS) {
-                uint timeStaked = block.timestamp - stakerInfo.stakedAt;
-                if (timeStaked > LOCKUP_PERIOD) {
-                    distributeCOG(calculateTokenDistributionForLand(tokenIds[index], countRewardsFrom), stakerInfo.owner);
-                }
+            if (CLAIM_REWARDS && (block.timestamp - stakerInfo.stakedAt) > LOCKUP_PERIOD) {
+                distributeCOG(calculateTokenDistributionForLand(tokenIds[index]), stakerInfo.owner);
             }
             ILandContract(LAND).transferFrom(address(this), stakerInfo.owner, tokenIds[index]);
             stakerInfo.owner = address(0);
@@ -238,7 +227,6 @@ contract Staker is Ownable, ReentrancyGuard, IERC721Receiver {
             stakerInfo.lastRewardsClaimedAt = block.timestamp;
             removeLand(msg.sender, tokenIds[index]);
         }
-
         return true;
     }
 
@@ -248,18 +236,9 @@ contract Staker is Ownable, ReentrancyGuard, IERC721Receiver {
         for (uint index = 0; index < tokenIds.length; index++) {
             require(checkLandOwner(msg.sender, tokenIds[index]), "Not staked");
             StakerInfo storage stakerInfo = stakedLands[tokenIds[index]];
-            require(stakerInfo.owner == msg.sender, "Not your token");
-            require(stakerInfo.stakedAt > 0, "Not staked yet");
-            uint countRewardsFrom;
-            if (stakerInfo.lastRewardsClaimedAt > 0) {
-                countRewardsFrom = stakerInfo.lastRewardsClaimedAt;
-            } else {
-                countRewardsFrom = stakerInfo.stakedAt;
-            }
-            uint timeStaked = block.timestamp - stakerInfo.stakedAt;
-            require(timeStaked > LOCKUP_PERIOD, "Lockup period not expired yet.");
-            distributeCOG(calculateTokenDistributionForLand(tokenIds[index], countRewardsFrom), stakerInfo.owner);
             stakerInfo.lastRewardsClaimedAt = block.timestamp;
+            require((block.timestamp - stakerInfo.stakedAt) > LOCKUP_PERIOD, "Lockup period not expired yet.");
+            distributeCOG(calculateTokenDistributionForLand(tokenIds[index]), msg.sender);
         }
         return true;
     }
@@ -297,17 +276,8 @@ contract Staker is Ownable, ReentrancyGuard, IERC721Receiver {
         for (uint index = 0; index < tokenIds.length; index++) {
             require(checkEstateOwner(msg.sender, tokenIds[index]), "No tokens staked");
             StakerInfo storage stakerInfo = stakedEstates[tokenIds[index]];
-            require(stakerInfo.owner == msg.sender, "Not your token");
-            require(stakerInfo.stakedAt > 0, "Not staked yet");
-            uint countRewardsFrom;
-            if (stakerInfo.lastRewardsClaimedAt > 0) {
-                countRewardsFrom = stakerInfo.lastRewardsClaimedAt;
-            } else {
-                countRewardsFrom = stakerInfo.stakedAt;
-            }
-            uint timeStaked = block.timestamp - stakerInfo.stakedAt;
-            if (CLAIM_REWARDS && timeStaked > LOCKUP_PERIOD) {
-                distributeCOG(calculateTokenDistributionForEstate(tokenIds[index], countRewardsFrom), stakerInfo.owner);
+            if (CLAIM_REWARDS && (block.timestamp - stakerInfo.stakedAt) > LOCKUP_PERIOD) {
+                distributeCOG(calculateTokenDistributionForEstate(tokenIds[index]), stakerInfo.owner);
             }
             IEstateContract(ESTATE).transferFrom(address(this), stakerInfo.owner, tokenIds[index]);
             stakerInfo.owner = address(0);
@@ -324,18 +294,9 @@ contract Staker is Ownable, ReentrancyGuard, IERC721Receiver {
         for (uint index = 0; index < tokenIds.length; index++) {
             require(checkEstateOwner(msg.sender, tokenIds[index]), "Not staked");
             StakerInfo storage stakerInfo = stakedEstates[tokenIds[index]];
-            require(stakerInfo.owner == msg.sender, "Not your token");
-            require(stakerInfo.stakedAt > 0, "Not staked yet");
-            uint countRewardsFrom;
-            if (stakerInfo.lastRewardsClaimedAt > 0) {
-                countRewardsFrom = stakerInfo.lastRewardsClaimedAt;
-            } else {
-                countRewardsFrom = stakerInfo.stakedAt;
-            }
-            uint timeStaked = block.timestamp - stakerInfo.stakedAt;
-            require(timeStaked > LOCKUP_PERIOD, "Lockup period not expired yet.");
-            distributeCOG(calculateTokenDistributionForEstate(tokenIds[index], countRewardsFrom), stakerInfo.owner);
+            require((block.timestamp - stakerInfo.stakedAt) > LOCKUP_PERIOD, "Lockup period not expired yet.");
             stakerInfo.lastRewardsClaimedAt = block.timestamp;
+            distributeCOG(calculateTokenDistributionForEstate(tokenIds[index]), msg.sender);
         }
         return true;
     }
@@ -349,22 +310,50 @@ contract Staker is Ownable, ReentrancyGuard, IERC721Receiver {
         ICogToken(COG).transfer(to, amount);
     }
 
-    function calculateTokenDistributionForLand(uint tokenId, uint lastClaimedAt) public view returns(uint amountToDistribute) {
+    function calculateTokenDistributionForLand(uint tokenId) public view returns(uint amountToDistribute) {
+
+        StakerInfo storage stakerInfo = stakedLands[tokenId];
+        require(stakerInfo.owner == msg.sender, "Not your token");
+        require(stakerInfo.stakedAt > 0, "Not staked yet");
+
+        uint countRewardsFrom = stakerInfo.lastRewardsClaimedAt > 0 ? stakerInfo.lastRewardsClaimedAt : stakerInfo.stakedAt;
+
         uint landScore = IScores(SCORES).getLandScore(tokenId);
         uint tokensPerDay = (COG_EMISSIONS_PER_DAY / 100) * landScore;
         uint tokensPerSecond = (tokensPerDay * 10**18) / 86400; // raising power of tokens per day to divide by a larger denominator
-        uint stakeTimeInSeconds = block.timestamp - lastClaimedAt;
+        uint stakeTimeInSeconds = block.timestamp - countRewardsFrom;
         return tokensPerSecond * stakeTimeInSeconds;
     }
 
-    function calculateTokenDistributionForEstate(uint estateId, uint lastClaimedAt) public view returns(uint amountToDistribute) {
+    // to calculate total cog earning, for view only, not to be used inside write functions
+    function calculateTotalCogEarning(uint[] memory tokenIds, bool isLand) public view returns(uint amount) {
+        uint totalTokens = 0;
+        if (isLand) {
+            for (uint index = 0; index < tokenIds.length; index++) {
+                totalTokens += calculateTokenDistributionForLand(tokenIds[index]);
+            }
+        } else  {
+            for (uint index = 0; index < tokenIds.length; index++) {
+                totalTokens += calculateTokenDistributionForEstate(tokenIds[index]);
+            }
+        }
+        return totalTokens;
+    }
+
+    function calculateTokenDistributionForEstate(uint estateId) public view returns(uint amountToDistribute) {
+
+        StakerInfo storage stakerInfo = stakedEstates[estateId];
+        require(stakerInfo.owner == msg.sender, "Not your token");
+        require(stakerInfo.stakedAt > 0, "Not staked yet");
+
+        uint countRewardsFrom = stakerInfo.lastRewardsClaimedAt > 0 ? stakerInfo.lastRewardsClaimedAt : stakerInfo.stakedAt;
 
         uint estateScore = IScores(SCORES).getEstateScore(estateId);
         uint multiplier = IScores(SCORES).getEstateMultiplier(estateId);
 
         uint cogDistributionPerDay = (COG_EMISSIONS_PER_DAY / 100) * estateScore;
         uint tokensPerSecond = (cogDistributionPerDay * 10**18) / 86400; // raising power of tokens per day to divide by a larger denominator
-        uint stakeTimeInSeconds = block.timestamp - lastClaimedAt;
+        uint stakeTimeInSeconds = block.timestamp - countRewardsFrom;
         uint tokensToDistribute = stakeTimeInSeconds * tokensPerSecond;
         // multiplier is supposed to be 1.multiplier
         uint multiplierAmount = (tokensToDistribute / 10) * multiplier;
