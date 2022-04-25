@@ -18,7 +18,7 @@ interface IStakerContract {
     function stakeLandFromMinter(uint[] memory tokenIds, address _owner) external returns(bool success);
 }
 
-contract cityOfGoldLand is ERC721Enumerable, Ownable, ReentrancyGuard {
+contract CityOfGoldLand is ERC721Enumerable, Ownable, ReentrancyGuard {
 
     uint public TOKEN_ID = 0; // starts from one
 
@@ -34,7 +34,11 @@ contract cityOfGoldLand is ERC721Enumerable, Ownable, ReentrancyGuard {
 
     uint public MAX_PER_WALLET;
 
-    mapping(address => bool) public whitelistClaimed;
+    uint public ALLOCATED_FOR_TEAM;
+
+    uint public TEAM_COUNT;
+
+    mapping(address => uint) public whitelistClaimed;
 
     uint256 public MAX_SUPPLY; // max supply of nfts
 
@@ -52,24 +56,27 @@ contract cityOfGoldLand is ERC721Enumerable, Ownable, ReentrancyGuard {
     // Token URI
     string public baseTokenURI;
 
-    event NftMinted(address to, uint date, uint tokenId, string tokenURI); // Used to generate NFT data on external decentralized storage service
-
     constructor(
         uint256 maxNftSupply,
         address payable _treasury,
         uint publicSalePrice,
         uint _whiteListPrice,
-        uint maxPerWallet
+        uint maxPerWallet,
+        uint allocatedForTeam
     ) ERC721("City Of Gold LAND", "LAND") {
         MAX_SUPPLY = maxNftSupply;
         treasury = _treasury;
         nftPrice = publicSalePrice;
         whitelistPrice = _whiteListPrice;
         MAX_PER_WALLET = maxPerWallet;
+        ALLOCATED_FOR_TEAM = allocatedForTeam;
+    }
+
+    function setMerkleRoot(bytes32 _merkleRoot) public onlyOwner {
+        merkleRoot = _merkleRoot;
     }
 
     function setStakerAddress(address staker) public onlyOwner {
-        require(staker != address(0), "Cannot be a zero address");
         STAKER = staker;
     }
 
@@ -89,7 +96,7 @@ contract cityOfGoldLand is ERC721Enumerable, Ownable, ReentrancyGuard {
         baseTokenURI = _newBaseURI;
     }
 
-    // fallback  function to set a particular token uri manually if something incorrect in one of the metadata files
+    // function to set a particular token uri manually if something incorrect in one of the metadata files
     function setTokenURI(uint tokenID, string memory uri) public onlyOwner() {
         _tokenURIs[tokenID] = uri;
     }
@@ -102,7 +109,7 @@ contract cityOfGoldLand is ERC721Enumerable, Ownable, ReentrancyGuard {
         if (_tokenId > MAX_SUPPLY) {
             _tokenId = _tokenId - MAX_SUPPLY;
         }
-        return string(abi.encodePacked(baseTokenURI, Strings.toString(tokenId)));
+        return string(abi.encodePacked(baseTokenURI, Strings.toString(_tokenId)));
     }
 
     /*
@@ -123,34 +130,39 @@ contract cityOfGoldLand is ERC721Enumerable, Ownable, ReentrancyGuard {
         whiteListActive = !whiteListActive;
     }
 
-    function whitelistMint(bytes32[] calldata _merkleProof, bool stake) public payable nonReentrant {
-        require(whiteListActive, "Whitelist sale is not active yet.");
-        require(whitelistPrice > 0, "Whitelist price not set yet");
-        require((TOKEN_ID + 1) <= MAX_SUPPLY, "Purchase would exceed max supply of NFTs");
+    function whitelistMint(bytes32[] calldata _merkleProof, bool stake, uint amount) public payable nonReentrant {
+        require(whiteListActive && whitelistPrice > 0, "Whitelist not active yet.");
+        require((TOKEN_ID + amount) <= MAX_SUPPLY && (whitelistClaimed[msg.sender] + amount) < 10, "Mint exceeds limits");
         require(msg.value >= whitelistPrice, "Not enough balance");
-        require(!whitelistClaimed[msg.sender], "Address has already claimed");
         bytes32 leaf = keccak256(abi.encodePacked(msg.sender));
         require(MerkleProof.verify(_merkleProof, merkleRoot, leaf), "Invalid Proof");
-        whitelistClaimed[msg.sender] = true;
         treasury.transfer(msg.value);
-        TOKEN_ID += 1;
         if (stake) {
-            _safeMint(STAKER, TOKEN_ID);
-            uint[] memory tokenIds = new uint[](1);
-            tokenIds[0] = TOKEN_ID;
+            uint[] memory tokenIds = new uint[](amount);
+            for (uint index = 0; index < amount; index++) {
+                whitelistClaimed[msg.sender] += 1;
+                TOKEN_ID += 1;
+                _safeMint(STAKER, TOKEN_ID);
+                tokenIds[index] = TOKEN_ID;
+            }
             require(IStakerContract(STAKER).stakeLandFromMinter(tokenIds, msg.sender), "Staking failure");
-        }  else {
-            _safeMint(msg.sender, TOKEN_ID);
+        } else {
+            for (uint index = 0; index < amount; index++) {
+                whitelistClaimed[msg.sender] += 1;
+                TOKEN_ID += 1;
+                _safeMint(msg.sender, TOKEN_ID);
+            }
+        }
+        if (TOKEN_ID == MAX_SUPPLY) {
+            setStartingIndex();
         }
     }
 
     // the default mint function for public sale
     function publicMint(uint amount, bool stake) public payable nonReentrant {
-        require(amount > 0 && amount < MAX_PER_WALLET, "Cannot be more than max per wallet at a time limit");
-        require(nftPrice > 0, "NFT price not set yet");
-        require(treasury != address(0), "Treasury address not set yet");
-        require(saleIsActive, "Sale must be active to mint nft");
-        require((TOKEN_ID + amount) <= MAX_SUPPLY, "Purchase would exceed max supply of NFTs");
+        require(amount > 0 && amount <= MAX_PER_WALLET, "Invalid Amount");
+        require(saleIsActive && nftPrice > 0 && treasury != address(0), "Config not done yet");
+        require((TOKEN_ID + amount) <= MAX_SUPPLY, "Mint exceeds limits");
         require(msg.value >= (nftPrice * amount), "Not enough balance");
         treasury.transfer(msg.value);
         if (stake) {
@@ -177,16 +189,18 @@ contract cityOfGoldLand is ERC721Enumerable, Ownable, ReentrancyGuard {
     }
 
     // for emergency reveal
-    function setStartingIndex(uint index) public onlyOwner {
-        STARTING_INDEX = index;
+    function setStartingIndexEmergency() public onlyOwner {
+        require(STARTING_INDEX  == 0, "Already set");
+        STARTING_INDEX = block.timestamp % MAX_SUPPLY;
     }
 
     // mass minting function, one for each address
     function massMint(address[] memory addresses) public onlyOwner() {
         for (uint index = 0; index < addresses.length; index++) {
-            require((TOKEN_ID + 1) <= MAX_SUPPLY, "Purchase would exceed max supply of NFTs");
+            require(TEAM_COUNT <= ALLOCATED_FOR_TEAM && (TOKEN_ID + 1) <= MAX_SUPPLY, "Amount exceeds allocation");
             TOKEN_ID += 1;
             _safeMint(addresses[index], TOKEN_ID);
+            TEAM_COUNT += 1;
         }
     }
 

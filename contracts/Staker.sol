@@ -236,9 +236,9 @@ contract Staker is Ownable, ReentrancyGuard, IERC721Receiver {
         for (uint index = 0; index < tokenIds.length; index++) {
             require(checkLandOwner(msg.sender, tokenIds[index]), "Not staked");
             StakerInfo storage stakerInfo = stakedLands[tokenIds[index]];
-            stakerInfo.lastRewardsClaimedAt = block.timestamp;
             require((block.timestamp - stakerInfo.stakedAt) > LOCKUP_PERIOD, "Lockup period not expired yet.");
             distributeCOG(calculateTokenDistributionForLand(tokenIds[index]), msg.sender);
+            stakerInfo.lastRewardsClaimedAt = block.timestamp;
         }
         return true;
     }
@@ -295,8 +295,8 @@ contract Staker is Ownable, ReentrancyGuard, IERC721Receiver {
             require(checkEstateOwner(msg.sender, tokenIds[index]), "Not staked");
             StakerInfo storage stakerInfo = stakedEstates[tokenIds[index]];
             require((block.timestamp - stakerInfo.stakedAt) > LOCKUP_PERIOD, "Lockup period not expired yet.");
-            stakerInfo.lastRewardsClaimedAt = block.timestamp;
             distributeCOG(calculateTokenDistributionForEstate(tokenIds[index]), msg.sender);
+            stakerInfo.lastRewardsClaimedAt = block.timestamp;
         }
         return true;
     }
@@ -326,15 +326,19 @@ contract Staker is Ownable, ReentrancyGuard, IERC721Receiver {
     }
 
     // to calculate total cog earning, for view only, not to be used inside write functions
-    function calculateTotalCogEarning(uint[] memory tokenIds, bool isLand) public view returns(uint amount) {
+    function calculateTotalCogEarning(address owner, bool isLand) public view returns(uint amount) {
         uint totalTokens = 0;
         if (isLand) {
-            for (uint index = 0; index < tokenIds.length; index++) {
-                totalTokens += calculateTokenDistributionForLand(tokenIds[index]);
+            for (uint index = 0; index < landBalances[msg.sender].length; index++) {
+                if (landBalances[msg.sender][index] != 0) {
+                    totalTokens += calculateTokenDistributionForLand(landBalances[msg.sender][index]);
+                }
             }
         } else  {
-            for (uint index = 0; index < tokenIds.length; index++) {
-                totalTokens += calculateTokenDistributionForEstate(tokenIds[index]);
+            for (uint index = 0; index < estateBalances[msg.sender].length; index++) {
+                if (estateBalances[msg.sender][index] != 0) {
+                    totalTokens += calculateTokenDistributionForEstate(estateBalances[msg.sender][index]);
+                }
             }
         }
         return totalTokens;

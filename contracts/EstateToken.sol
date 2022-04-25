@@ -33,7 +33,7 @@ interface IScores {
     function getEstateMultiplier(uint tokenId) external view returns (uint score);
 }
 
-contract cityOfGoldEstate is ERC721Enumerable, Ownable, IERC721Receiver, ReentrancyGuard {
+contract CityOfGoldEstate is ERC721Enumerable, Ownable, IERC721Receiver, ReentrancyGuard {
 
     using Counters for Counters.Counter;
     Counters.Counter private _tokenIds;

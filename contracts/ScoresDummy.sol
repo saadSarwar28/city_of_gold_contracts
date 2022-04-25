@@ -54,9 +54,9 @@ contract CityOfGoldScoresDummy is Ownable {
     // be carefull , tiers shouldn't overlap
     function setTier(uint tierIndex, uint _min, uint _max, uint _multiplier) public onlyOwner {
         tierList[tierIndex] = Tier({
-        min: _min,
-        max: _max,
-        multiplier: _multiplier
+            min: _min,
+            max: _max,
+            multiplier: _multiplier
         });
     }
 

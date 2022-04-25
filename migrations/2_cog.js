@@ -3,11 +3,11 @@ const CityOfGoldScores = artifacts.require("CityOfGoldScores");
 // cog token
 const cogToken = artifacts.require("CityOfGold");
 // land token
-const cityOfGoldLand = artifacts.require("cityOfGoldLand");
+const cityOfGoldLand = artifacts.require("CityOfGoldLand");
 // estate token
-const cityOfGoldEstate = artifacts.require("cityOfGoldEstate");
+const cityOfGoldEstate = artifacts.require("CityOfGoldEstate");
 // staker
-const Staker = artifacts.require("Staker");
+const Staker = artifacts.require("CityOfGoldStaker");
 
 module.exports = async function (deployer) {
 
@@ -24,7 +24,8 @@ module.exports = async function (deployer) {
     const publicSalePrice = '150000000000000000'  // 0.15 ether
     const whitelistPrice =  '120000000000000000'  // 0.12 ether
     const maxPerWallet = 9
-    await deployer.deploy(cityOfGoldLand, maxNfts, treasury, publicSalePrice, whitelistPrice, maxPerWallet);
+    const allocatedForTeam = 250
+    await deployer.deploy(cityOfGoldLand, maxNfts, treasury, publicSalePrice, whitelistPrice, maxPerWallet, allocatedForTeam);
     const landContract = await cityOfGoldLand.deployed()
 
     await deployer.deploy(cityOfGoldEstate, scoresContract.address, landContract.address);
