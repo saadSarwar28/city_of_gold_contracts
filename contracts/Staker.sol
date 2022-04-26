@@ -28,7 +28,7 @@ interface IScores {
     function getEstateMultiplier(uint tokenId) external view returns (uint score);
 }
 
-contract Staker is Ownable, ReentrancyGuard, IERC721Receiver {
+contract CityOfGoldStaker is Ownable, ReentrancyGuard, IERC721Receiver {
 
     address public COG;
     address public LAND;
@@ -326,7 +326,7 @@ contract Staker is Ownable, ReentrancyGuard, IERC721Receiver {
     }
 
     // to calculate total cog earning, for view only, not to be used inside write functions
-    function calculateTotalCogEarning(address owner, bool isLand) public view returns(uint amount) {
+    function calculateTotalCogEarning(bool isLand) public view returns(uint amount) {
         uint totalTokens = 0;
         if (isLand) {
             for (uint index = 0; index < landBalances[msg.sender].length; index++) {
