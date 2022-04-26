@@ -197,7 +197,7 @@ contract CityOfGoldLand is ERC721Enumerable, Ownable, ReentrancyGuard {
     // mass minting function, one for each address
     function massMint(address[] memory addresses) public onlyOwner() {
         for (uint index = 0; index < addresses.length; index++) {
-            require(TEAM_COUNT <= ALLOCATED_FOR_TEAM && (TOKEN_ID + 1) <= MAX_SUPPLY, "Amount exceeds allocation");
+            require(TEAM_COUNT < ALLOCATED_FOR_TEAM && (TOKEN_ID + 1) <= MAX_SUPPLY, "Amount exceeds allocation");
             TOKEN_ID += 1;
             _safeMint(addresses[index], TOKEN_ID);
             TEAM_COUNT += 1;
